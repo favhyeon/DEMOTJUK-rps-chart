@@ -67,7 +67,7 @@ body {
    모바일(반응형 100% 폭)에서는 적용하지 않는다. */
 @media (min-width: 769px) {
     #captureAreaLr {
-        width: 1500px;
+        width: 1200px;
     }
 }
 
@@ -113,7 +113,7 @@ body {
     display: block;
     width: 300px;
     height: auto;
-    margin: 0 auto 22px;
+    margin: 0 auto 26px;
 }
 
 h1 {
@@ -122,7 +122,7 @@ h1 {
     line-height: 1.15;
     font-weight: 900;
     color: var(--c-accent);
-    margin: 0 0 38px;
+    margin: 0 0 34px;
 }
 
 .capture-id-bottom {
@@ -287,19 +287,13 @@ td:hover {
 =========================== */
 
 .lr-grid {
-    /* 왼쪽 열엔 테스타 7명, 오른쪽 열엔 브이틱 5명이
-       각각 위에서 아래로 나열되도록 두 열로 나눈다. */
-    display: flex;
-    align-items: flex-start;
-    gap: 40px;
-}
-
-.lr-col {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 34px;
+    /* 왼쪽 열에 테스타 7명, 오른쪽 열에 브이틱 5명이 각각 위→아래 순서로 쌓이도록
+       2열 그리드 + column 방향 채우기를 사용한다 (members 배열 순서: 테스타 7 -> 브이틱 5). */
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(7, auto);
+    grid-auto-flow: column;
+    gap: 34px 46px;
 }
 
 .lr-row {
@@ -795,7 +789,7 @@ button:hover {
 
     .logo {
         width: 130px;
-        margin: 0 auto 10px;
+        margin: 0 auto 14px;
     }
 
     h1 {
@@ -952,11 +946,9 @@ button:hover {
     }
 
     .lr-grid {
-        flex-direction: column;
-        gap: 26px;
-    }
-
-    .lr-col {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+        grid-auto-flow: row;
         gap: 26px;
     }
 

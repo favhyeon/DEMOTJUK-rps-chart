@@ -18,10 +18,6 @@ const members = [
     "비한"
 ];
 
-/* 공수 취향표에서 왼쪽(테스타)/오른쪽(브이틱) 두 열로 나누는 기준.
-   members 배열의 0~6번(7명)이 테스타, 7~11번(5명)이 브이틱이다. */
-const TESTAR_COUNT = 7;
-
 /* 멤버별 본인 이니셜 (닉네임, 행/열 숨기기 문구에 사용) */
 const ownInitials = ["배", "청", "앟", "큰", "문", "윶", "랩", "엋", "율", "신", "단", "뱐"];
 
@@ -184,7 +180,7 @@ const MOBILE_BREAKPOINT = 768;
    CSS의 #captureArea / #captureAreaLr width 값과 항상 같아야 한다. */
 const CAPTURE_WIDTH = {
     rps: 1300,
-    lr: 1500
+    lr: 1200
 };
 
 function getCaptureWidth(tab) {
@@ -648,12 +644,6 @@ function defaultAvatar(name, color) {
 function createLrGrid() {
     lrGrid.innerHTML = "";
 
-    const colLeft = document.createElement("div");
-    colLeft.className = "lr-col";
-
-    const colRight = document.createElement("div");
-    colRight.className = "lr-col";
-
     members.forEach((member, index) => {
         const row = document.createElement("div");
         row.className = "lr-row";
@@ -756,11 +746,8 @@ function createLrGrid() {
 
         row.appendChild(content);
 
-        (index < TESTAR_COUNT ? colLeft : colRight).appendChild(row);
+        lrGrid.appendChild(row);
     });
-
-    lrGrid.appendChild(colLeft);
-    lrGrid.appendChild(colRight);
 
     /* 저장돼 있던 글이 여러 줄이어도 처음부터 잘리지 않도록,
        모든 칸을 한 번씩 실제 내용 높이에 맞춰준다. */
