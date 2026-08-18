@@ -2,6 +2,20 @@
    기본 설정
 =========================== */
 
+:root {
+    --c-1: #c092d2;
+    --c-2: #9189cc;
+    --c-3: #65a1d6;
+    --c-4: #65a1d6;
+    --c-accent: #49749a;
+    --c-accent-dark: #385976;
+    --c-tint: #f0f6fb;
+    --c-gradient: linear-gradient(90deg, var(--c-1), var(--c-2), var(--c-3), var(--c-4));
+    --c-gradient-hover: linear-gradient(90deg, #d0addd, #aca6d9, #8cb8e0, #8cb8e0);
+    --header-row-height: 68px;
+    --header-col-width: 116px;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -14,7 +28,7 @@ body {
         "Pretendard",
         "Noto Sans KR",
         sans-serif;
-    color: #2f2b3f;
+    color: #222;
 }
 
 .wrapper {
@@ -34,7 +48,7 @@ body {
 }
 
 .capture-area {
-    width: 1100px;
+    width: 1300px;
     margin: 0 auto;
     padding: 28px 50px 34px;
     background: #fff;
@@ -43,29 +57,28 @@ body {
     transform-origin: top left;
 }
 
+/* 알페스 취향표: 로고 위쪽 여백을 넉넉하게 준다 */
+#captureArea {
+    padding-top: 44px;
+}
+
+/* 공수 취향표: 가로가 더 길고 세로는 더 짧게 나오도록 폭을 넓힌다.
+   JS의 CAPTURE_WIDTH.lr 값과 항상 같아야 한다.
+   모바일(반응형 100% 폭)에서는 적용하지 않는다. */
+@media (min-width: 769px) {
+    #captureAreaLr {
+        width: 1500px;
+    }
+}
+
 /* ===========================
    탭 전환
 =========================== */
 
-.back-link {
-    display: block;
-    text-align: center;
-    margin: 0 0 14px;
-    font-size: 13px;
-    font-weight: 700;
-    color: #a08c96;
-    text-decoration: none;
-}
-
-.back-link:hover {
-    color: #6d4e5e;
-    text-decoration: underline;
-}
-
 .tab-wrap {
     display: flex;
     gap: 8px;
-    background: #e9e4e7;
+    background: var(--c-tint);
     padding: 6px;
     border-radius: 999px;
     margin-bottom: 18px;
@@ -78,18 +91,18 @@ body {
     border-radius: 999px;
     font-size: 15px;
     font-weight: 800;
-    color: #a08c96;
+    color: var(--c-accent);
     cursor: pointer;
     transition: .2s;
 }
 
 .tab-btn:hover {
-    color: #6d4e5e;
+    color: var(--c-accent-dark);
 }
 
 .tab-btn.active {
-    background: #836976;
-    color: #ffffff;
+    background: var(--c-gradient);
+    color: #3a1f3f;
 }
 
 /* ===========================
@@ -98,9 +111,9 @@ body {
 
 .logo {
     display: block;
-    width: 224px;
+    width: 300px;
     height: auto;
-    margin: 0 auto 30px;
+    margin: 14px auto 12px;
 }
 
 h1 {
@@ -108,8 +121,8 @@ h1 {
     font-size: 34px;
     line-height: 1.15;
     font-weight: 900;
-    color: #6d4e5e;
-    margin: 0 0 30px;
+    color: var(--c-accent);
+    margin: 0 0 34px;
 }
 
 .capture-id-bottom {
@@ -126,7 +139,7 @@ h1 {
     margin-left: 10px;
     font-size: 16px;
     font-weight: 700;
-    color: #a08c96;
+    color: var(--c-accent);
     vertical-align: middle;
 }
 
@@ -143,7 +156,7 @@ h1 {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
-    max-width: 980px;
+    max-width: 1180px;
     margin: 0 auto 8px;
 }
 
@@ -152,8 +165,8 @@ h1 {
     height: 32px;
     border-radius: 50%;
     border: none;
-    background: #e9e4e7;
-    color: #6d4e5e;
+    background: var(--c-tint);
+    color: var(--c-accent);
     font-size: 13px;
     display: flex;
     align-items: center;
@@ -163,7 +176,7 @@ h1 {
 }
 
 .nav-btn:hover:not(:disabled) {
-    background: #dad3d7;
+    background: #dfe3f5;
     transform: none;
 }
 
@@ -174,25 +187,39 @@ h1 {
 
 table {
     width: 100%;
-    max-width: 980px;
+    max-width: 1180px;
     margin: 0 auto;
     border-collapse: collapse;
     table-layout: fixed;
     overflow: hidden;
     border-radius: 16px;
+
+    /* 표 전체에 그라데이션 두 장을 깔아두고, th는 배경을 투명하게 둬서
+       그 아래 그라데이션이 비쳐 보이게 한다.
+       - 첫 번째(위쪽 레이어): 맨 윗줄(헤더 행) 전체를 가로지르는 가로 그라데이션
+       - 두 번째(아래쪽 레이어): 맨 왼쪽 칸(헤더 열) 전체를 가로지르는 세로 그라데이션
+       모서리(첫 행 첫 칸)는 두 레이어가 겹치는데, 위쪽 레이어(가로)가 우선 표시된다. */
+    background-image:
+        linear-gradient(90deg, var(--c-1), var(--c-2), var(--c-3), var(--c-4)),
+        linear-gradient(180deg, var(--c-1), var(--c-2), var(--c-3), var(--c-4));
+    background-repeat: no-repeat, no-repeat;
+    background-position: top left, top left;
+    background-size: 100% var(--header-row-height), var(--header-col-width) 100%;
 }
 
 th {
-    background: #e9e4e7;
-    color: #2f2b3f;
-    height: 68px;
-    font-size: 23px;
+    background: transparent;
+    color: #3a1f3f;
+    height: var(--header-row-height);
+    font-size: 19px;
     font-weight: 800;
     border: 1px solid rgba(255,255,255,.45);
+    padding: 0 2px;
+    word-break: keep-all;
 }
 
 th:first-child {
-    width: 140px;
+    width: var(--header-col-width);
 }
 
 .clickable-header {
@@ -201,13 +228,13 @@ th:first-child {
 }
 
 .clickable-header:hover {
-    background: #dad3d7;
+    background: var(--c-gradient-hover);
 }
 
 td {
     height: 68px;
     text-align: center;
-    font-size: 23px;
+    font-size: 19px;
     font-weight: 700;
     background: #fff;
     border: 1px solid #e3e3e3;
@@ -260,29 +287,32 @@ td:hover {
 =========================== */
 
 .lr-grid {
+    /* 3열 x 4행(4-4-4)으로 배치하되, 세로(위→아래) 우선으로 채워서
+       members 배열 순서(테스타 7 -> 브이틱 5)가 왼쪽→오른쪽으로 갈수록
+       테스타에서 브이틱으로 자연스럽게 넘어가도록 한다. */
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: repeat(3, auto);
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(4, auto);
     grid-auto-flow: column;
-    gap: 46px 50px;
+    gap: 34px 30px;
 }
 
 .lr-row {
     display: flex;
     align-items: flex-start;
-    gap: 22px;
+    gap: 18px;
 }
 
 .lr-avatar {
     position: relative;
-    width: 128px;
-    height: 128px;
+    width: 112px;
+    height: 112px;
     border-radius: 50%;
     overflow: hidden;
     flex: 0 0 auto;
     cursor: pointer;
-    border: 4px solid #e9e4e7;
-    background: #e9e4e7;
+    border: 4px solid var(--c-tint);
+    background: var(--c-tint);
 }
 
 .lr-avatar img {
@@ -319,22 +349,22 @@ td:hover {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
 }
 
 .lr-label-l,
 .lr-label-r {
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 800;
-    color: #6d4e5e;
+    color: var(--c-accent);
     flex: 0 0 auto;
 }
 
 .lr-bar {
     flex: 1;
     display: flex;
-    height: 32px;
-    border: 2px solid #c5b8bf;
+    height: 38px;
+    border: 2px solid #dcd6ef;
     border-radius: 8px;
     overflow: hidden;
 }
@@ -343,7 +373,7 @@ td:hover {
     flex: 1;
     height: 100%;
     background: #fff;
-    border-right: 1px solid #e9e4e7;
+    border-right: 1px solid #e8eaf7;
     cursor: pointer;
     transition: .1s;
 }
@@ -353,11 +383,11 @@ td:hover {
 }
 
 .lr-cell:hover {
-    background: #e9e4e7;
+    background: #f2f5fc;
 }
 
 .lr-cell.filled {
-    background: #836976;
+    background: var(--c-3);
 }
 
 .lr-text-wrap {
@@ -366,26 +396,26 @@ td:hover {
 
 .lr-text {
     width: 100%;
-    min-height: 150px;
+    min-height: 190px;
     resize: none;
     overflow: hidden;
-    border: 2px solid #c5b8bf;
+    border: 2px solid #dcd6ef;
     border-radius: 10px;
     padding: 12px 14px 26px;
     font-size: 17px;
     line-height: 1.5;
     font-family: inherit;
     word-break: break-word;
-    color: #2f2b3f;
+    color: #222;
     outline: none;
 }
 
 .lr-text:focus {
-    border-color: #6d4e5e;
+    border-color: var(--c-accent);
 }
 
 .lr-text::placeholder {
-    color: #a08c96;
+    color: #8b93b8;
 }
 
 .lr-char-count {
@@ -393,7 +423,7 @@ td:hover {
     right: 12px;
     bottom: 8px;
     font-size: 12px;
-    color: #a08c96;
+    color: #8b93b8;
     font-weight: 600;
     pointer-events: none;
 }
@@ -436,12 +466,12 @@ button:hover {
 }
 
 #saveBtn {
-    background: #836976;
-    color: #ffffff;
+    background: var(--c-gradient);
+    color: #3a1f3f;
 }
 
 #saveBtn:hover {
-    background: #5d4250;
+    background: var(--c-gradient-hover);
 }
 
 #resetBtn {
@@ -482,7 +512,7 @@ button:hover {
 .date-toggle input {
     width: 17px;
     height: 17px;
-    accent-color: #6d4e5e;
+    accent-color: var(--c-accent);
     cursor: pointer;
 }
 
@@ -551,7 +581,7 @@ button:hover {
     text-align: center;
     font-size: 21px;
     font-weight: 900;
-    color: #2f2b3f;
+    color: #111;
     margin-bottom: 22px;
 }
 
@@ -652,7 +682,7 @@ button:hover {
 }
 
 .reset-colors-link:hover {
-    color: #6d4e5e;
+    color: var(--c-accent);
 }
 
 .modal-extra {
@@ -678,7 +708,7 @@ button:hover {
 .hide-toggle input {
     width: 16px;
     height: 16px;
-    accent-color: #6d4e5e;
+    accent-color: var(--c-accent);
     cursor: pointer;
 }
 
@@ -729,7 +759,7 @@ button:hover {
 
 #closeSaveModal {
     width: 180px;
-    background: #6d4e5e;
+    background: #111;
     color: #fff;
 }
 
@@ -759,8 +789,8 @@ button:hover {
     }
 
     .logo {
-        width: 112px;
-        margin: 0 auto 16px;
+        width: 130px;
+        margin: 8px auto 8px;
     }
 
     h1 {
@@ -782,7 +812,7 @@ button:hover {
         line-height: 1.5;
     }
 
-    /* 압페스 취향표 - 화면 폭에 맞춰 표 전체가 줄어들어
+    /* 윗페스 취향표 - 화면 폭에 맞춰 표 전체가 줄어들어
        드래그 없이 한 화면에 다 보이도록 한다. */
     .table-wrap {
         overflow-x: visible;
@@ -792,17 +822,14 @@ button:hover {
         width: 100%;
         min-width: 0;
         table-layout: fixed;
+        --header-row-height: 38px;
+        --header-col-width: 15%;
     }
 
     th {
-        height: 38px;
         font-size: 11px;
         padding: 0 1px;
         word-break: keep-all;
-    }
-
-    th:first-child {
-        width: 15%;
     }
 
     td {
