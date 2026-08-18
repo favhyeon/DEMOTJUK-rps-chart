@@ -98,9 +98,9 @@ body {
 
 .logo {
     display: block;
-    width: 160px;
+    width: 224px;
     height: auto;
-    margin: 0 auto 24px;
+    margin: 0 auto 30px;
 }
 
 h1 {
@@ -109,7 +109,7 @@ h1 {
     line-height: 1.15;
     font-weight: 900;
     color: #6d4e5e;
-    margin: 0 0 38px;
+    margin: 0 0 30px;
 }
 
 .capture-id-bottom {
@@ -759,8 +759,8 @@ button:hover {
     }
 
     .logo {
-        width: 80px;
-        margin: 0 auto 12px;
+        width: 112px;
+        margin: 0 auto 16px;
     }
 
     h1 {

@@ -138,6 +138,11 @@ h1 {
     margin: 0 0 38px;
 }
 
+/* 공수 취향표: 문구를 조금 더 크게 */
+#captureAreaLr h1 {
+    font-size: 40px;
+}
+
 .capture-id-bottom {
     display: block;
     text-align: center;

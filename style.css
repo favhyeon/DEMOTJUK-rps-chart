@@ -57,9 +57,9 @@ body {
     transform-origin: top left;
 }
 
-/* 텟페스 취향표: 위쪽 여백을 아주 조금만 줄인다 */
+/* 알페스 취향표: 로고 위쪽 여백을 넉넉하게 준다 */
 #captureArea {
-    padding-top: 18px;
+    padding-top: 44px;
 }
 
 /* 공수 취향표: 가로가 더 길고 세로는 더 짧게 나오도록 폭을 넓힌다.
@@ -67,7 +67,7 @@ body {
    모바일(반응형 100% 폭)에서는 적용하지 않는다. */
 @media (min-width: 769px) {
     #captureAreaLr {
-        width: 1200px;
+        width: 1500px;
     }
 }
 
@@ -287,13 +287,14 @@ td:hover {
 =========================== */
 
 .lr-grid {
-    /* 왼쪽 열에 테스타 7명, 오른쪽 열에 브이틱 5명이 각각 위→아래 순서로 쌓이도록
-       2열 그리드 + column 방향 채우기를 사용한다 (members 배열 순서: 테스타 7 -> 브이틱 5). */
+    /* 4열 x 3행(4-4-4)으로 짧게 배치하되, 세로(위→아래) 우선으로 채워서
+       members 배열 순서(테스타 7 -> 브이틱 5)가 왼쪽→오른쪽으로 갈수록
+       테스타에서 브이틱으로 자연스럽게 넘어가도록 한다. */
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: repeat(7, auto);
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(3, auto);
     grid-auto-flow: column;
-    gap: 34px 46px;
+    gap: 34px 30px;
 }
 
 .lr-row {

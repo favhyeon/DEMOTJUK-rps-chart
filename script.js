@@ -180,7 +180,7 @@ const MOBILE_BREAKPOINT = 768;
    CSS의 #captureArea / #captureAreaLr width 값과 항상 같아야 한다. */
 const CAPTURE_WIDTH = {
     rps: 1300,
-    lr: 1200
+    lr: 1500
 };
 
 function getCaptureWidth(tab) {
