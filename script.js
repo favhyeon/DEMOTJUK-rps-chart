@@ -54,12 +54,9 @@ const defaultPhotos = [
 ];
 
 /*
- * 표에 표시할 커플명.
- * [행 멤버][열 멤버] 순서. 앞 7×7(테스타-테스타), 뒤 5×5(브이틱-브이틱) 블록은
- * 기존 각 사이트에서 쓰던 값을 그대로 가져왔고, 그 외(테스타↔브이틱) 조합은
- * 아직 이름이 없어서 이니셜을 이어붙인 기본값으로 채워뒀어요.
+ * 표에 표시할 씨피명.
+ * [행 멤버][열 멤버] 순서. 
  * 멤버 이니셜 순서: ['배', '청', '앟', '큰', '문', '윶', '랩', '엋', '율', '신', '단', '뱐']
- * 원하는 조합명으로 자유롭게 바꿔서 쓰시면 돼요.
  */
 const pairNames = [
     ["배배", "배청", "배앟", "배큰", "배문", "배윶", "배랩", "배엋", "배율", "배신", "배단", "배뱐"],
@@ -354,6 +351,10 @@ function createTable() {
     const visibleColIndexes = members.map((_, i) => i).filter(i => !hiddenCols.has(i));
     const visibleRowIndexes = members.map((_, i) => i).filter(i => !hiddenRows.has(i));
 
+    /* 모바일 가로 스크롤/왼쪽 칸 고정용 CSS 변수 (열 개수, 전체 행 수) */
+    table.style.setProperty("--cols", visibleColIndexes.length);
+    table.style.setProperty("--rows", visibleRowIndexes.length + 1);
+
     const head = document.createElement("tr");
     const empty = document.createElement("th");
     empty.className = "corner";
@@ -380,6 +381,7 @@ function createTable() {
         const rowHead = document.createElement("th");
         rowHead.textContent = members[rowIndex];
         rowHead.classList.add("clickable-header");
+        rowHead.style.setProperty("--r", visibleRowIndexes.indexOf(rowIndex) + 1);
 
         rowHead.addEventListener("click", () => {
             currentTarget = { type: "row", index: rowIndex };
