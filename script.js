@@ -112,12 +112,12 @@ const LR_FONT_MIN = 12;
 const LR_FONT_MAX = 40;
 const LR_FONT_DEFAULT = 17;
 
-/* PC 저장 레이아웃(1500px)에서 의견 입력칸의 실제 가로 폭(px).
-   = ((1500 - 좌우 패딩 100 - 열 간격 30x2) / 3) - 아바타 112 - 간격 18
+/* PC 저장 레이아웃(1820px)에서 의견 입력칸의 실제 가로 폭(px).
+   = ((1820 - 좌우 패딩 128 - 열 간격 30x2) / 3) - 아바타 112 - 간격 18
    모바일에서는 이 폭 대비 현재 칸 폭의 비율(k)로 글자/칸 크기를 똑같이 줄여서,
    화면에서 보이는 줄바꿈·잘림이 저장 이미지와 같아지게 한다.
    CSS의 PC 레이아웃 값(캡처 폭, 패딩, 열 간격, 아바타 폭)이 바뀌면 이 값도 같이 바꿔야 한다. */
-const LR_PC_TEXT_WIDTH = 316.67;
+const LR_PC_TEXT_WIDTH = 414;
 
 const STORAGE_KEY = "demotjuk-alpes-rps";
 const LR_STORAGE_KEY = "demotjuk-lr-rps";
@@ -189,11 +189,11 @@ const MOBILE_BREAKPOINT = 768;
 
 /* 탭마다 캡처(저장) 기준 폭이 다르다.
    - 알페스 취향표: 12명이라 기존보다 넓은 1300px
-   - 공수 취향표: 가로가 더 길고 세로는 더 짧게 나오도록 1500px로 넓힘
+   - 공수 취향표: 가로가 더 길고 세로는 더 짧게(대략 4:3) 나오도록 1820px로 넓힘
    CSS의 #captureArea / #captureAreaLr width 값과 항상 같아야 한다. */
 const CAPTURE_WIDTH = {
     rps: 1300,
-    lr: 1500
+    lr: 1820
 };
 
 function getCaptureWidth(tab) {
@@ -1165,4 +1165,72 @@ window.addEventListener("orientationchange", () => {
     });
 
     update();
+})();
+
+
+/* ==========================================
+   알페스 저장 이미지 - 로고 시각적 가운데 맞춤
+   로고는 사각형이 아니라서 "계산상 가운데"여도 눈에는 한쪽으로 치우쳐 보인다.
+   그림의 글자(잉크)가 몰려 있는 무게중심을 재서, 저장할 때만 그만큼 살짝 옮겨 가운데로 보이게 한다.
+   (이미지를 읽을 수 없는 환경이면 조용히 건너뛰고 원래 위치를 쓴다)
+========================================== */
+
+const LOGO_OPTICAL_STRENGTH = 0.7; // 1이면 무게중심을 정확히 가운데로, 0이면 보정 없음
+const LOGO_OPTICAL_MAX_SHIFT = 14; // 보정 한계(px)
+
+(function setupLogoOpticalCenter() {
+    const logo = document.querySelector("#captureArea .logo");
+    if (!logo) return;
+
+    function measure() {
+        try {
+            const w = logo.naturalWidth;
+            const h = logo.naturalHeight;
+            if (!w || !h) return;
+
+            const scale = Math.min(1, 400 / w);
+            const cw = Math.max(1, Math.round(w * scale));
+            const ch = Math.max(1, Math.round(h * scale));
+
+            const canvas = document.createElement("canvas");
+            canvas.width = cw;
+            canvas.height = ch;
+
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(logo, 0, 0, cw, ch);
+            const data = ctx.getImageData(0, 0, cw, ch).data;
+
+            let sum = 0;
+            let sumX = 0;
+
+            for (let y = 0; y < ch; y++) {
+                for (let x = 0; x < cw; x++) {
+                    const i = (y * cw + x) * 4;
+                    const alpha = data[i + 3] / 255;
+                    const dark = 1 - (data[i] + data[i + 1] + data[i + 2]) / 765;
+                    const weight = alpha * dark;
+                    sum += weight;
+                    sumX += weight * (x + 0.5);
+                }
+            }
+
+            if (sum <= 0) return;
+
+            const centroid = sumX / sum;
+            const offsetRatio = (cw / 2 - centroid) / cw;
+            const logoDisplayWidth = 300; // style.css의 .logo 폭과 같아야 한다
+            let shift = offsetRatio * logoDisplayWidth * LOGO_OPTICAL_STRENGTH;
+            shift = Math.max(-LOGO_OPTICAL_MAX_SHIFT, Math.min(LOGO_OPTICAL_MAX_SHIFT, shift));
+
+            logo.style.setProperty("--logo-shift", `${shift.toFixed(1)}px`);
+        } catch (e) {
+            /* 캔버스로 읽을 수 없으면 보정 없이 그대로 */
+        }
+    }
+
+    if (logo.complete) {
+        measure();
+    } else {
+        logo.addEventListener("load", measure);
+    }
 })();

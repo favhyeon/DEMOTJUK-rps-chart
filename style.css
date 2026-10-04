@@ -64,11 +64,20 @@ body {
 }
 
 /* 공수 취향표: 가로가 더 길고 세로는 더 짧게 나오도록 폭을 넓힌다.
-   JS의 CAPTURE_WIDTH.lr 값과 항상 같아야 한다.
+   JS의 CAPTURE_WIDTH.lr 값과 항상 같아야 한다. 
    모바일(반응형 100% 폭)에서는 적용하지 않는다. */
 @media (min-width: 769px) {
+    /* 알페스: 좌우 여백 60px -> 표(최대 1180px)가 딱 맞게 들어가 사방 여백이 고르다 */
+    #captureArea {
+        padding-left: 60px;
+        padding-right: 60px;
+    }
+
+    /* 공수: 좌우 여백 64px. 이 값을 바꾸면 script.js의 LR_PC_TEXT_WIDTH도 같이 바꿔야 한다. */
     #captureAreaLr {
-        width: 1500px;
+        width: 1820px;
+        padding-left: 64px;
+        padding-right: 64px;
     }
 }
 
@@ -649,6 +658,11 @@ button:hover {
     margin: 0 0 18px;
 }
 
+/* 공수 취향표 탭: 안내 글자와 프로필 사이를 조금 더 띄운다 */
+#guideListLr {
+    margin-bottom: 32px;
+}
+
 .guide-list p {
     margin: 0;
     color: #999;
@@ -663,6 +677,105 @@ button:hover {
 .capturing .guide-list,
 .capturing .table-nav {
     display: none;
+}
+
+/* ---- 저장 이미지 전용 배치 (화면의 탭 모습은 그대로) ----
+   알페스: 로고는 가운데, 제목 글자는 뺀다. 날짜는 로고의 오른쪽 옆에, 로고 아랫선에 맞춰 둔다.
+   공수  : 로고를 빼고 "데못죽 공수 취향표" 글자만 가운데에 둔다.
+           날짜는 제목 글자의 오른쪽 옆에, 글자 아랫선에 맞춰 둔다.
+   두 경우 모두 날짜는 위치를 따로 잡기 때문에, 날짜를 켜고 꺼도 로고/제목 위치는 그대로다.
+   위아래 여백은 두 이미지 모두 같은 값으로 맞춘다. */
+.title-block {
+    position: relative;
+}
+
+.title-text-full {
+    display: none;
+}
+
+/* 날짜를 켜지 않았으면 빈 줄이 높이를 차지하지 않도록 */
+.chart-date:empty {
+    display: none;
+}
+
+#captureArea.capturing,
+#captureAreaLr.capturing {
+    padding-bottom: 40px;
+}
+
+#captureArea.capturing {
+    padding-top: 84px;
+}
+
+/* 로고 시각적 가운데 맞춤: script.js가 --logo-shift를 계산해서 넣는다 (저장할 때만 적용) */
+#captureArea.capturing .logo {
+    transform: translateX(var(--logo-shift, 0px));
+}
+
+/* ----- 알페스 ----- */
+#captureArea.capturing .title-text {
+    display: none;
+}
+
+/* 로고 아래 간격 = 로고와 표 사이 (날짜가 들어갈 자리 포함) */
+#captureArea.capturing .title-block {
+    margin-bottom: 56px;
+}
+
+#captureArea.capturing .logo {
+    margin-bottom: 0;
+}
+
+/* 로고(폭 300px)는 가운데 그대로 두고, 날짜는 로고 오른쪽 옆에 로고 아랫선과 맞춘다 */
+#captureArea.capturing h1 {
+    position: absolute;
+    left: calc(50% + 150px + 24px);
+    bottom: -3px;
+    margin: 0;
+    white-space: nowrap;
+}
+
+#captureArea.capturing .chart-date {
+    margin-left: 0;
+    font-size: 20px;
+}
+
+/* ----- 공수 ----- */
+#captureAreaLr.capturing .logo,
+#captureAreaLr.capturing .title-text {
+    display: none;
+}
+
+#captureAreaLr.capturing .title-text-full {
+    display: inline;
+}
+
+#captureAreaLr.capturing {
+    padding-top: 72px;
+}
+
+#captureAreaLr.capturing .title-block {
+    text-align: center;
+    margin-bottom: 78px;
+}
+
+/* 제목 글자 크기만큼만 폭을 차지하게 해서, 날짜가 글자의 오른쪽 끝에 맞춰지도록 */
+#captureAreaLr.capturing h1 {
+    display: inline-block;
+    position: relative;
+    margin: 0;
+    font-size: 50px;
+    white-space: nowrap;
+}
+
+/* 제목 글자 오른쪽 옆에, 글자 아랫선에 맞춰 날짜 (제목 위치는 날짜와 상관없이 그대로) */
+#captureAreaLr.capturing .chart-date {
+    position: absolute;
+    left: 100%;
+    bottom: 7px;
+    margin: 0 0 0 18px;
+    font-size: 22px;
+    vertical-align: baseline;
 }
 
 /* 저장 이미지에서는 스크롤/고정을 풀어 표 전체가 그대로 찍히게 한다 */
@@ -947,6 +1060,10 @@ button:hover {
 
     .guide-list {
         margin-bottom: 12px;
+    }
+
+    #guideListLr {
+        margin-bottom: 26px;
     }
 
     .guide-list p {
