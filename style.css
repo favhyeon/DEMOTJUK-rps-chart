@@ -57,14 +57,10 @@ body {
     transform-origin: top left;
 }
 
-/* 알페스 취향표: 로고 위쪽 여백을 넉넉하게 준다 */
-#captureArea {
-    padding-top: 44px;
-}
-
-/* 공수 취향표: 위쪽 여백이 알페스 취향표보다 부족해 보여서 살짝 늘려준다 */
+/* 알페스 / 공수 취향표: 탭을 오갈 때 로고 위치가 달라 보이지 않도록 위쪽 여백을 똑같이 맞춘다 */
+#captureArea,
 #captureAreaLr {
-    padding-top: 38px;
+    padding-top: 44px;
 }
 
 /* 공수 취향표: 가로가 더 길고 세로는 더 짧게 나오도록 폭을 넓힌다.
@@ -190,35 +186,70 @@ h1 {
     cursor: default;
 }
 
-table {
-    width: 100%;
+/* 둥근 모서리와 클리핑(가로 스크롤)은 이 컨테이너가 맡는다.
+   고정(sticky)된 왼쪽 칸도 이 둥근 모서리 안에서 같이 잘려서 뾰족한 모서리가 안 보인다. */
+.table-clip {
     max-width: 1180px;
     margin: 0 auto;
-    border-collapse: collapse;
-    table-layout: fixed;
-    overflow: hidden;
     border-radius: 16px;
-
-    /* 표 전체에 그라데이션 두 장을 깔아두고, th는 배경을 투명하게 둬서
-       그 아래 그라데이션이 비쳐 보이게 한다.
-       - 첫 번째(위쪽 레이어): 맨 윗줄(헤더 행) 전체를 가로지르는 가로 그라데이션
-       - 두 번째(아래쪽 레이어): 맨 왼쪽 칸(헤더 열) 전체를 가로지르는 세로 그라데이션
-       모서리(첫 행 첫 칸)는 두 레이어가 겹치는데, 위쪽 레이어(가로)가 우선 표시된다. */
-    background-image:
-        linear-gradient(90deg, var(--c-1), var(--c-2), var(--c-3), var(--c-4)),
-        linear-gradient(180deg, var(--c-1), var(--c-2), var(--c-3), var(--c-4));
-    background-repeat: no-repeat, no-repeat;
-    background-position: top left, top left;
-    background-size: 100% var(--header-row-height), var(--header-col-width) 100%;
+    overflow: hidden;
+    border: 1px solid #e3e3e3;
 }
 
+/* 기본 스크롤바는 숨기고, 표 아래에 따로 띄운 둥근 스크롤바(.table-scrollbar)를 쓴다 */
+.table-scroll {
+    overflow: hidden;
+    scrollbar-width: none;
+}
+
+.table-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.table-scrollbar {
+    display: none;
+    position: relative;
+    max-width: 1180px;
+    height: 8px;
+    margin: 14px auto 0;
+    border-radius: 999px;
+    background: var(--c-tint);
+    touch-action: none;
+}
+
+.table-scrollbar.active {
+    display: block;
+}
+
+.table-scrollbar-thumb {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    border-radius: 999px;
+    background: var(--c-3);
+    cursor: grab;
+}
+
+table {
+    width: 100%;
+    margin: 0;
+    border-collapse: separate; /* 스크롤/고정 중에도 칸 테두리가 같이 움직이도록 */
+    border-spacing: 0;
+    table-layout: fixed;
+}
+
+/* 헤더 칸마다 불투명한 자기 배경색(--hbg)을 가진다.
+   색은 script.js의 createTable()이 그라데이션처럼 계산해서 넣는다. */
 th {
-    background: transparent;
+    background: var(--hbg, var(--c-1));
     color: #3a1f3f;
     height: var(--header-row-height);
     font-size: 19px;
     font-weight: 800;
-    border: 1px solid rgba(255,255,255,.45);
+    border: 0;
+    border-right: 1px solid rgba(255,255,255,.45);
+    border-bottom: 1px solid rgba(255,255,255,.45);
     padding: 0 2px;
     word-break: keep-all;
 }
@@ -233,7 +264,7 @@ th:first-child {
 }
 
 .clickable-header:hover {
-    background: var(--c-gradient-hover);
+    filter: brightness(.92);
 }
 
 td {
@@ -242,10 +273,16 @@ td {
     font-size: 19px;
     font-weight: 700;
     background: #fff;
-    border: 1px solid #e3e3e3;
+    border: 0;
+    border-right: 1px solid #e3e3e3;
+    border-bottom: 1px solid #e3e3e3;
     cursor: pointer;
     transition: .15s;
 }
+
+/* 바깥 테두리는 컨테이너가 그리므로 맨 오른쪽/맨 아래 칸 테두리는 뺀다 */
+tr > :last-child { border-right: 0; }
+tr:last-child > * { border-bottom: 0; }
 
 td:hover {
     transform: scale(1.025);
@@ -399,15 +436,20 @@ td:hover {
     position: relative;
 }
 
+/* --k: 모바일에서 PC 저장 레이아웃 대비 칸 폭 비율(JS가 설정, PC는 1).
+   --fs: 멤버별 글자 크기(저장 이미지 기준 px).
+   k만큼 글자/칸/안쪽 여백을 똑같이 줄이면 줄바꿈이 저장 이미지와 같아진다.
+   칸 높이는 고정이고, 글이 넘치면 안에서 스크롤되며 경고가 뜬다.
+   (테두리 2px은 고정이라 안쪽 여백에서 보정) */
 .lr-text {
     width: 100%;
-    min-height: 190px;
+    height: calc(190px * var(--k, 1));
     resize: none;
-    overflow: hidden;
+    overflow-y: auto;
     border: 2px solid #dcd6ef;
     border-radius: 10px;
-    padding: 12px 14px 26px;
-    font-size: 17px;
+    padding: calc(12px * var(--k, 1) - 2px) calc(14px * var(--k, 1) - 2px) calc(26px * var(--k, 1) - 2px);
+    font-size: calc(var(--fs, 17) * var(--k, 1) * 1px);
     line-height: 1.5;
     font-family: inherit;
     word-break: break-word;
@@ -421,6 +463,56 @@ td:hover {
 
 .lr-text::placeholder {
     color: #8b93b8;
+}
+
+.lr-font-ctrl {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    color: #8a93b8;
+    font-weight: 700;
+}
+
+.lr-font-ctrl input[type="range"] {
+    flex: 1;
+    min-width: 0;
+    accent-color: var(--c-accent);
+}
+
+.lr-font-s { font-size: 12px; }
+.lr-font-l { font-size: 18px; }
+
+.lr-font-val {
+    font-size: 12px;
+    min-width: 36px;
+    text-align: right;
+}
+
+/* 이미지 저장 중에는 글자 크기 조절 바를 숨김 */
+.capturing .lr-font-ctrl {
+    display: none;
+}
+
+.lr-warn {
+    display: none;
+    margin-top: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #e0457b;
+}
+
+.lr-row.overflow .lr-warn {
+    display: block;
+}
+
+.lr-row.overflow .lr-text {
+    border-color: #e0457b;
+}
+
+/* 이미지 저장 중에는 경고를 숨김 */
+.capturing .lr-warn {
+    display: none !important;
 }
 
 .lr-char-count {
@@ -521,6 +613,37 @@ button:hover {
     cursor: pointer;
 }
 
+/* 데못죽 / TeSTAR / VTIC 선택은 동작은 라디오(하나만 선택) 그대로, 모양만 네모 체크박스처럼 */
+.date-toggle input[type="radio"] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: grid;
+    place-content: center;
+    margin: 0;
+    border: 2px solid #767676;
+    border-radius: 4px;
+    background: #fff;
+}
+
+.date-toggle input[type="radio"]::before {
+    content: "";
+    width: 9px;
+    height: 5px;
+    border-left: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: translateY(-1px) rotate(-45deg);
+    opacity: 0;
+}
+
+.date-toggle input[type="radio"]:checked {
+    background: var(--c-accent);
+    border-color: var(--c-accent);
+}
+
+.date-toggle input[type="radio"]:checked::before {
+    opacity: 1;
+}
+
 .guide-list {
     text-align: center;
     margin: 0 0 18px;
@@ -540,6 +663,20 @@ button:hover {
 .capturing .guide-list,
 .capturing .table-nav {
     display: none;
+}
+
+/* 저장 이미지에서는 스크롤/고정을 풀어 표 전체가 그대로 찍히게 한다 */
+.capturing .table-scrollbar {
+    display: none !important;
+}
+
+.capturing .table-scroll {
+    overflow: hidden;
+}
+
+.capturing tr > :first-child {
+    position: static;
+    box-shadow: none;
 }
 
 /* ===========================
@@ -820,11 +957,10 @@ button:hover {
     /* 알페스 취향표 (모바일)
        - 표를 원래 비율로 유지하고, 표가 화면보다 넓으면 좌우로 스크롤한다.
        - 맨 왼쪽 이름 칸(세로 헤더)과 왼쪽 위 모서리 칸은 스크롤해도 고정된다.
-       - 열 개수(--cols)와 행 번호(--r)는 script.js의 createTable()에서 넣어준다. */
-    .table-wrap {
+       - 열 개수(--cols)와 헤더 색(--hbg)은 script.js의 createTable()에서 넣어준다. */
+    .table-scroll {
         overflow-x: auto;
         overflow-y: hidden;
-        border-radius: 16px;
         -webkit-overflow-scrolling: touch;
         overscroll-behavior-x: contain;
     }
@@ -838,27 +974,13 @@ button:hover {
         width: calc(var(--header-col-width) + var(--cols, 12) * var(--col-width));
         min-width: 100%;
         max-width: none;
-        margin: 0;
-        table-layout: fixed;
-
-        /* 스크롤 중에도 칸 테두리가 사라지지 않도록 separate 방식 사용 */
-        border-collapse: separate;
-        border-spacing: 0;
-        overflow: visible;
-        border-radius: 16px;
-        background-size: 100% var(--header-row-height);
-        background-image: linear-gradient(90deg, var(--c-1), var(--c-2), var(--c-3), var(--c-4));
-        background-repeat: no-repeat;
-        background-position: top left;
     }
 
     th {
         height: var(--row-h);
         font-size: 12px;
         padding: 0 1px;
-        word-break: keep-all;
         white-space: nowrap;
-        border-width: 0 1px 1px 0;
     }
 
     td {
@@ -866,45 +988,29 @@ button:hover {
         font-size: 12px;
         padding: 0 1px;
         white-space: nowrap;
-        border-width: 0 1px 1px 0;
     }
 
     td:hover {
         transform: none;
     }
 
+    /* 터치 후 hover가 남아도 배경이 투명해지지 않도록 밝기만 살짝 바꾼다 */
     .clickable-header:hover {
-        background: transparent;
+        filter: none;
     }
 
-    /* 왼쪽 이름 칸 고정 (sticky는 배경이 투명하면 뒤가 비쳐 보이므로,
-       세로 그라데이션을 행마다 이어지도록 잘라서 칠해준다) */
-    th:first-child {
-        width: var(--header-col-width);
+    /* 왼쪽 이름 칸 고정: 칸마다 불투명한 배경(--hbg)이라 뒤가 비치지 않는다 */
+    tr > :first-child {
         position: sticky;
         left: 0;
         z-index: 3;
-        background-color: var(--c-1);
-        background-image: linear-gradient(180deg, var(--c-1), var(--c-2), var(--c-3), var(--c-4));
-        background-repeat: no-repeat;
-        background-size: 100% calc(var(--rows, 13) * var(--row-h));
-        background-position: 0 calc(var(--r, 0) * var(--row-h) * -1);
+        width: var(--header-col-width);
         box-shadow: 3px 0 5px -2px rgba(0, 0, 0, .18);
     }
-
-    /* 표 네 모서리를 둥글게.
-       스크롤 영역의 border-radius만으로는 고정(sticky)된 칸이 잘리지 않아
-       모서리가 뾰족하게 보이므로, 모서리 칸에 직접 radius를 준다. */
-    tr:first-child th:first-child { border-top-left-radius: 16px; }
-    tr:first-child th:last-child  { border-top-right-radius: 16px; }
-    tr:last-child th:first-child  { border-bottom-left-radius: 16px; }
-    tr:last-child td:last-child   { border-bottom-right-radius: 16px; }
 
     /* 왼쪽 위 모서리 칸 */
     th.corner {
         z-index: 4;
-        background-image: none;
-        background-color: var(--c-1);
     }
 
     .table-nav {
@@ -1047,10 +1153,11 @@ button:hover {
         border-radius: 8px;
     }
 
+    /* 저장 이미지(190px)보다 조금만 낮게(165px) 해서 화면에서 살짝 더 컴팩트하게.
+       그만큼 넘침 경고가 실제보다 조금 일찍 뜰 수 있지만, 경고 없이 잘리는 일은 없다. */
     .lr-text {
-        min-height: 120px;
-        font-size: 15px;
-        padding: 10px 12px 24px;
+        height: calc(165px * var(--k, 1));
+        padding: calc(10px * var(--k, 1) - 2px) calc(12px * var(--k, 1) - 2px) calc(24px * var(--k, 1) - 2px);
     }
 
     .lr-char-count {

@@ -18,6 +18,10 @@ const members = [
     "비한"
 ];
 
+/* 표 헤더 그라데이션 색 (style.css의 --c-1 ~ --c-4 와 같은 색).
+   createTable()이 파일 중간에서 먼저 실행되므로 반드시 위쪽에 둬야 한다. */
+const HEADER_STOPS = ["#c092d2", "#9189cc", "#65a1d6", "#65a1d6"];
+
 /* 멤버별 본인 이니셜 (닉네임, 행/열 숨기기 문구에 사용) */
 const ownInitials = ["배", "청", "앟", "큰", "문", "윶", "랩", "엋", "율", "신", "단", "뱐"];
 
@@ -102,6 +106,18 @@ function resetCustomColors() {
     customColors = {};
     localStorage.removeItem(CUSTOM_COLOR_KEY);
 }
+
+/* 멤버별 의견 글자 크기 (px) */
+const LR_FONT_MIN = 12;
+const LR_FONT_MAX = 40;
+const LR_FONT_DEFAULT = 17;
+
+/* PC 저장 레이아웃(1500px)에서 의견 입력칸의 실제 가로 폭(px).
+   = ((1500 - 좌우 패딩 100 - 열 간격 30x2) / 3) - 아바타 112 - 간격 18
+   모바일에서는 이 폭 대비 현재 칸 폭의 비율(k)로 글자/칸 크기를 똑같이 줄여서,
+   화면에서 보이는 줄바꿈·잘림이 저장 이미지와 같아지게 한다.
+   CSS의 PC 레이아웃 값(캡처 폭, 패딩, 열 간격, 아바타 폭)이 바뀌면 이 값도 같이 바꿔야 한다. */
+const LR_PC_TEXT_WIDTH = 316.67;
 
 const STORAGE_KEY = "demotjuk-alpes-rps";
 const LR_STORAGE_KEY = "demotjuk-lr-rps";
@@ -198,13 +214,18 @@ let saveData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
 let lrData = JSON.parse(localStorage.getItem(LR_STORAGE_KEY)) || {
     texts: {},
     cells: {},
-    photos: {}
+    photos: {},
+    fontSizes: {}
 };
+
+/* 예전에 저장된 데이터에는 fontSizes가 없으므로 보정 */
+lrData.fontSizes = lrData.fontSizes || {};
 
 const GUIDE_TEXT = {
     rps: [
         "셀을 선택하여 호감도를 표시해주세요.",
-        "멤버 이름을 누르면 줄 전체선택/숨기기가 가능해요."
+        "멤버 이름을 누르면 줄 전체선택/숨기기가 가능해요.",
+        "사진 저장은 브라우저를 열고 해주세요."
     ],
     lr: [
         "L-R 사이 원하는 부분의 칸을 선택하고, 아래 칸에 자유롭게 적어보세요.",
@@ -345,6 +366,21 @@ tabLr.addEventListener("click", () => switchTab("lr"));
    알페스 취향표 - 표 생성
 ========================================== */
 
+/* 표 헤더(맨 윗줄, 맨 왼쪽 열) 그라데이션 색.
+   칸마다 자기 배경색을 가져야 왼쪽 열을 고정(sticky)해도 색이 어긋나지 않는다.
+   style.css의 --c-1 ~ --c-4 와 같은 색이다. */
+
+function headerColor(t) {
+    const hex = h => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16));
+    const n = HEADER_STOPS.length - 1;
+    const p = Math.min(Math.max(t, 0), 1) * n;
+    const i = Math.min(Math.floor(p), n - 1);
+    const f = p - i;
+    const a = hex(HEADER_STOPS[i]);
+    const b = hex(HEADER_STOPS[i + 1]);
+    return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * f)).join(",")})`;
+}
+
 function createTable() {
     table.innerHTML = "";
 
@@ -353,15 +389,16 @@ function createTable() {
 
     /* 모바일 가로 스크롤/왼쪽 칸 고정용 CSS 변수 (열 개수, 전체 행 수) */
     table.style.setProperty("--cols", visibleColIndexes.length);
-    table.style.setProperty("--rows", visibleRowIndexes.length + 1);
 
     const head = document.createElement("tr");
     const empty = document.createElement("th");
     empty.className = "corner";
+    empty.style.setProperty("--hbg", headerColor(0));
     head.appendChild(empty);
 
-    visibleColIndexes.forEach(colIndex => {
+    visibleColIndexes.forEach((colIndex, pos) => {
         const th = document.createElement("th");
+        th.style.setProperty("--hbg", headerColor((pos + 1.5) / (visibleColIndexes.length + 1)));
         th.textContent = members[colIndex];
         th.classList.add("clickable-header");
 
@@ -381,7 +418,7 @@ function createTable() {
         const rowHead = document.createElement("th");
         rowHead.textContent = members[rowIndex];
         rowHead.classList.add("clickable-header");
-        rowHead.style.setProperty("--r", visibleRowIndexes.indexOf(rowIndex) + 1);
+        rowHead.style.setProperty("--hbg", headerColor((visibleRowIndexes.indexOf(rowIndex) + 1.5) / (visibleRowIndexes.length + 1)));
 
         rowHead.addEventListener("click", () => {
             currentTarget = { type: "row", index: rowIndex };
@@ -737,30 +774,83 @@ function createLrGrid() {
             lrData.texts[index] = text.value;
             charCount.textContent = `${text.value.length}/150`;
             saveLrData();
-            autoResizeTextarea(text);
+            updateLrOverflow(row);
         });
 
         textWrap.appendChild(text);
         textWrap.appendChild(charCount);
 
+        /* 글자 크기 조절 */
+        const size = lrData.fontSizes[index] || LR_FONT_DEFAULT;
+        text.style.setProperty("--fs", size);
+
+        const sizeCtrl = document.createElement("div");
+        sizeCtrl.className = "lr-font-ctrl";
+        sizeCtrl.innerHTML = `
+            <span class="lr-font-s">가</span>
+            <input type="range" min="${LR_FONT_MIN}" max="${LR_FONT_MAX}" value="${size}" aria-label="${member} 글자 크기">
+            <span class="lr-font-l">가</span>
+            <span class="lr-font-val">${size}px</span>
+        `;
+
+        const sizeInput = sizeCtrl.querySelector("input");
+        const valLabel = sizeCtrl.querySelector(".lr-font-val");
+
+        sizeInput.addEventListener("input", () => {
+            const v = Number(sizeInput.value);
+            text.style.setProperty("--fs", v);
+            valLabel.textContent = `${v}px`;
+            lrData.fontSizes[index] = v;
+            saveLrData();
+            updateLrOverflow(row);
+        });
+
         content.appendChild(barWrap);
         content.appendChild(textWrap);
+        content.appendChild(sizeCtrl);
+
+        const warn = document.createElement("div");
+        warn.className = "lr-warn";
+        warn.textContent = "글이 칸을 넘어서 이미지에서 잘려요. 글자 크기나 글을 줄여주세요.";
+        content.appendChild(warn);
 
         row.appendChild(content);
 
         lrGrid.appendChild(row);
     });
 
-    /* 저장돼 있던 글이 여러 줄이어도 처음부터 잘리지 않도록,
-       모든 칸을 한 번씩 실제 내용 높이에 맞춰준다. */
-    lrGrid.querySelectorAll(".lr-text").forEach(autoResizeTextarea);
+    updateLrScale();
 }
 
-/* 칸에 적은 글이 늘어나면 잘리는 대신 칸 자체가 자연스럽게 늘어나도록.
-   grid 행이 auto 높이라 아래 칸들과 겹치지 않고 밀려 내려간다. */
-function autoResizeTextarea(el) {
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
+/* 이 멤버 칸의 글이 넘치는지(= 저장 이미지에서 잘리는지) 확인해서 경고를 켜고 끈다.
+   탭이 숨겨져 있으면 크기를 잴 수 없으므로 건너뛴다. */
+function updateLrOverflow(row) {
+    const ta = row.querySelector(".lr-text");
+    if (!ta || !ta.clientHeight) return false;
+
+    const over = ta.scrollHeight > ta.clientHeight + 1;
+    row.classList.toggle("overflow", over);
+    return over;
+}
+
+/* 모바일에서는 입력칸이 PC 저장 레이아웃보다 좁으므로,
+   폭 비율(k)만큼 글자/칸 크기를 똑같이 줄여서 줄바꿈이 저장 이미지와 같게 만든다.
+   PC(축소 배율로 보여주는 경우 포함)는 레이아웃 폭이 항상 같아 k = 1. */
+function updateLrScale() {
+    if (!lrGrid || captureAreaLr.classList.contains("hidden")) return;
+
+    const screenWidth = Math.min(window.innerWidth, document.documentElement.clientWidth);
+    let k = 1;
+
+    if (screenWidth <= MOBILE_BREAKPOINT) {
+        const wrap = lrGrid.querySelector(".lr-text-wrap");
+        if (wrap && wrap.clientWidth) {
+            k = wrap.clientWidth / LR_PC_TEXT_WIDTH;
+        }
+    }
+
+    lrGrid.style.setProperty("--k", k.toFixed(4));
+    lrGrid.querySelectorAll(".lr-row").forEach(updateLrOverflow);
 }
 
 function toggleLrCell(memberIndex, cellIndex, cellEl) {
@@ -817,7 +907,7 @@ resetBtn.addEventListener("click", () => {
         createTable();
     } else {
         localStorage.removeItem(LR_STORAGE_KEY);
-        lrData = { texts: {}, cells: {}, photos: {} };
+        lrData = { texts: {}, cells: {}, photos: {}, fontSizes: {} };
         createLrGrid();
     }
 });
@@ -827,6 +917,19 @@ resetBtn.addEventListener("click", () => {
 ========================================== */
 
 saveBtn.addEventListener("click", async () => {
+    /* 공수 취향표: 글이 넘쳐서 잘리는 멤버가 있으면 저장 전에 알려준다. */
+    if (currentTab === "lr") {
+        updateLrScale();
+        const overflowed = [...lrGrid.querySelectorAll(".lr-row")]
+            .map((r, i) => (r.classList.contains("overflow") ? members[i] : null))
+            .filter(Boolean);
+
+        if (overflowed.length &&
+            !confirm(`${overflowed.join(", ")} 칸의 글이 넘쳐서 이미지에서 일부 잘려요.\n그래도 저장할까요?`)) {
+            return;
+        }
+    }
+
     const buttonWrap = document.querySelector(".button-wrap");
     const tabWrap = document.querySelector(".tab-wrap");
     const area = currentTab === "rps" ? captureAreaRps : captureAreaLr;
@@ -858,12 +961,18 @@ saveBtn.addEventListener("click", async () => {
              * 실제 화면의 textarea(입력 가능 상태)는 건드리지 않는다.
              */
             onclone: (clonedDoc) => {
+                /* 저장 이미지는 항상 PC 레이아웃 기준: 모바일용 보정(k)과 경고 표시는 걷어낸다. */
+                const clonedGrid = clonedDoc.getElementById("lrGrid");
+                if (clonedGrid) clonedGrid.style.setProperty("--k", "1");
+                clonedDoc.querySelectorAll(".lr-row.overflow").forEach((r) => r.classList.remove("overflow"));
+
                 clonedDoc.querySelectorAll(".lr-text").forEach((ta) => {
                     const div = clonedDoc.createElement("div");
                     div.className = "lr-text";
                     div.style.whiteSpace = "pre-wrap";
                     div.style.wordBreak = "break-word";
                     div.style.overflow = "hidden";
+                    div.style.setProperty("--fs", ta.style.getPropertyValue("--fs"));
                     div.textContent = ta.value;
                     ta.replaceWith(div);
                 });
@@ -932,6 +1041,11 @@ document.addEventListener("keydown", (e) => {
 ========================================== */
 
 function fitCaptureArea() {
+    fitCaptureAreaLayout();
+    updateLrScale();
+}
+
+function fitCaptureAreaLayout() {
     const area = currentTab === "rps" ? captureAreaRps : captureAreaLr;
     const wrap = scaleWrap;
 
@@ -970,3 +1084,85 @@ window.addEventListener("resize", fitCaptureArea);
 window.addEventListener("orientationchange", () => {
     setTimeout(fitCaptureArea, 200);
 });
+
+
+/* ==========================================
+   알페스 취향표 - 표 아래 둥근 스크롤바
+   (기본 스크롤바는 표에 붙어 보여서 숨기고, 표와 간격을 둔 별도 막대로 대신한다)
+========================================== */
+
+(function setupTableScrollbar() {
+    const scroller = document.getElementById("tableScroll");
+    const bar = document.getElementById("tableScrollbar");
+    const thumb = document.getElementById("tableScrollbarThumb");
+
+    if (!scroller || !bar || !thumb) return;
+
+    function maxScroll() {
+        return scroller.scrollWidth - scroller.clientWidth;
+    }
+
+    function update() {
+        const max = maxScroll();
+
+        if (max <= 1) {
+            bar.classList.remove("active");
+            return;
+        }
+
+        bar.classList.add("active");
+
+        const barWidth = bar.clientWidth;
+        const thumbWidth = Math.max(40, barWidth * (scroller.clientWidth / scroller.scrollWidth));
+        const x = (scroller.scrollLeft / max) * (barWidth - thumbWidth);
+
+        thumb.style.width = `${thumbWidth}px`;
+        thumb.style.transform = `translateX(${x}px)`;
+    }
+
+    scroller.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    window.addEventListener("load", update);
+
+    if (window.ResizeObserver) {
+        const ro = new ResizeObserver(update);
+        ro.observe(scroller);
+        ro.observe(table);
+    }
+
+    /* 막대 드래그 */
+    let dragging = false;
+    let startX = 0;
+    let startLeft = 0;
+
+    thumb.addEventListener("pointerdown", (e) => {
+        dragging = true;
+        startX = e.clientX;
+        startLeft = scroller.scrollLeft;
+        thumb.setPointerCapture(e.pointerId);
+        e.preventDefault();
+    });
+
+    thumb.addEventListener("pointermove", (e) => {
+        if (!dragging) return;
+        const track = bar.clientWidth - thumb.offsetWidth;
+        if (track <= 0) return;
+        scroller.scrollLeft = startLeft + (e.clientX - startX) * (maxScroll() / track);
+    });
+
+    const stopDrag = () => { dragging = false; };
+    thumb.addEventListener("pointerup", stopDrag);
+    thumb.addEventListener("pointercancel", stopDrag);
+
+    /* 막대의 빈 곳을 누르면 그 위치로 이동 */
+    bar.addEventListener("pointerdown", (e) => {
+        if (e.target === thumb) return;
+        const rect = bar.getBoundingClientRect();
+        const track = rect.width - thumb.offsetWidth;
+        if (track <= 0) return;
+        const ratio = (e.clientX - rect.left - thumb.offsetWidth / 2) / track;
+        scroller.scrollLeft = Math.min(1, Math.max(0, ratio)) * maxScroll();
+    });
+
+    update();
+})();

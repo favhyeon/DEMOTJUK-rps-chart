@@ -48,7 +48,14 @@
                     <button id="undoBtn" class="nav-btn" title="이전" disabled>&#10094;</button>
                     <button id="redoBtn" class="nav-btn" title="이후" disabled>&#10095;</button>
                 </div>
-                <table id="chartTable"></table>
+                <div class="table-clip">
+                    <div class="table-scroll" id="tableScroll">
+                        <table id="chartTable"></table>
+                    </div>
+                </div>
+                <div class="table-scrollbar" id="tableScrollbar">
+                    <div class="table-scrollbar-thumb" id="tableScrollbarThumb"></div>
+                </div>
             </div>
 
             <div class="legend" id="legendRps"></div>
