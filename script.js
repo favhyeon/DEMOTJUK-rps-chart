@@ -215,11 +215,13 @@ let lrData = JSON.parse(localStorage.getItem(LR_STORAGE_KEY)) || {
     texts: {},
     cells: {},
     photos: {},
-    fontSizes: {}
+    fontSizes: {},
+    excluded: {}
 };
 
 /* 예전에 저장된 데이터에는 fontSizes가 없으므로 보정 */
 lrData.fontSizes = lrData.fontSizes || {};
+lrData.excluded = lrData.excluded || {};
 
 const GUIDE_TEXT = {
     rps: [
@@ -229,7 +231,8 @@ const GUIDE_TEXT = {
     ],
     lr: [
         "L-R 사이 원하는 부분의 칸을 선택하고, 아래 칸에 자유롭게 적어보세요.",
-        "각 멤버의 프로필을 누르면 사진 변경이 가능해요."
+        "각 멤버의 프로필을 누르면 사진 변경이 가능해요.",
+        "사진 아래 '제외하기'를 체크하면 그 멤버는 저장 이미지에서 빠져요."
     ]
 };
 
@@ -712,7 +715,28 @@ function createLrGrid() {
             photoInput.click();
         });
 
-        row.appendChild(avatar);
+        /* 프로필 사진 + 그 아래 "제외하기" 체크박스 */
+        const side = document.createElement("div");
+        side.className = "lr-side";
+        side.appendChild(avatar);
+
+        const excludeLabel = document.createElement("label");
+        excludeLabel.className = "lr-exclude";
+        excludeLabel.innerHTML = `<input type="checkbox"><span>${member} 제외하기</span>`;
+
+        const excludeInput = excludeLabel.querySelector("input");
+        excludeInput.checked = !!lrData.excluded[index];
+        row.classList.toggle("excluded", excludeInput.checked);
+
+        excludeInput.addEventListener("change", () => {
+            lrData.excluded[index] = excludeInput.checked;
+            row.classList.toggle("excluded", excludeInput.checked);
+            saveLrData();
+            updateLrOverflow(row);
+        });
+
+        side.appendChild(excludeLabel);
+        row.appendChild(side);
 
         /* 오른쪽 내용 (바 + 텍스트) */
         const content = document.createElement("div");
@@ -825,6 +849,12 @@ function createLrGrid() {
 /* 이 멤버 칸의 글이 넘치는지(= 저장 이미지에서 잘리는지) 확인해서 경고를 켜고 끈다.
    탭이 숨겨져 있으면 크기를 잴 수 없으므로 건너뛴다. */
 function updateLrOverflow(row) {
+    /* 저장 이미지에서 빠지는(제외한) 멤버는 잘림 걱정이 없으므로 경고하지 않는다 */
+    if (row.classList.contains("excluded")) {
+        row.classList.remove("overflow");
+        return false;
+    }
+
     const ta = row.querySelector(".lr-text");
     if (!ta || !ta.clientHeight) return false;
 
@@ -907,7 +937,7 @@ resetBtn.addEventListener("click", () => {
         createTable();
     } else {
         localStorage.removeItem(LR_STORAGE_KEY);
-        lrData = { texts: {}, cells: {}, photos: {}, fontSizes: {} };
+        lrData = { texts: {}, cells: {}, photos: {}, fontSizes: {}, excluded: {} };
         createLrGrid();
     }
 });
@@ -916,9 +946,179 @@ resetBtn.addEventListener("click", () => {
    이미지 저장
 ========================================== */
 
+/* ==========================================
+   알페스 저장 이미지 - 셀 개수에 맞춰 표 폭/여백 조정
+   멤버를 숨겨서 열이 줄어들면, 표가 이미지 폭에 맞춰 늘어나 셀이 넓어지는 대신
+   "원래 셀 크기"를 유지하고 이미지 폭과 여백이 같이 줄어들게 한다.
+   (저장할 때 복제된 문서에서만 적용하고, 실제 화면은 건드리지 않는다)
+   단, 아래 호감도 범례(OTP~지뢰)와 날짜가 줄바꿈되거나 잘리지 않도록
+   이미지 폭이 그 이하로는 줄어들지 않는다.
+========================================== */
+
+const RPS_FULL_TABLE_WIDTH = 1180;   // 멤버 전원 표시 시 표 폭 (style.css .table-clip max-width)
+const RPS_HEADER_COL_WIDTH = 116;    // PC 왼쪽 이름 칸 폭 (style.css --header-col-width)
+const RPS_FULL_SIDE_MARGIN = 60;     // 전원 표시 시 좌우 여백
+const RPS_FULL_GAP_BELOW_LOGO = 72;  // 전원 표시 시 로고~표 간격 (style.css title-block margin-bottom)
+const RPS_FULL_PAD_BOTTOM = 40;      // 전원 표시 시 아래 여백
+const RPS_MIN_MARGIN_SCALE = 0.6;    // 열이 아주 적어도 여백은 이 비율 밑으로는 안 줄인다
+const RPS_LOGO_WIDTH = 300;          // style.css .logo 폭
+const RPS_DATE_GAP = 24;             // 로고~날짜 간격
+const RPS_GAP_REDUCE = 14;           // 로고~표 간격을 줄이는 양(px). 클수록 표가 로고에 가까워진다 (위쪽 여백은 그대로)
+
+function fitRpsCaptureToCells(doc, area) {
+    const table = doc.getElementById("chartTable");
+    const firstRow = table && table.rows[0];
+    if (!firstRow) return;
+
+    const cols = firstRow.cells.length - 1; // 맨 왼쪽 빈 칸 제외
+    if (cols < 1) return;
+
+    /* 셀 하나의 원래 폭 = 전원(12명) 표시 때의 셀 폭 */
+    const cellW = (RPS_FULL_TABLE_WIDTH - RPS_HEADER_COL_WIDTH) / members.length;
+    const tableW = RPS_HEADER_COL_WIDTH + cols * cellW;
+
+    /* 열이 적을수록 여백도 비례해서 줄인다 */
+    const s = Math.min(1, Math.max(RPS_MIN_MARGIN_SCALE, tableW / RPS_FULL_TABLE_WIDTH));
+    const side = RPS_FULL_SIDE_MARGIN * s;
+
+    /* 범례가 한 줄로 다 들어가야 하는 최소 폭 */
+    let legendW = 0;
+    const legend = doc.getElementById("legendRps");
+    if (legend) {
+        const items = [...legend.children];
+        legendW = items.reduce((sum, el) => sum + el.getBoundingClientRect().width, 0)
+            + 24 * Math.max(0, items.length - 1) + 8;
+    }
+
+    /* 날짜가 로고 오른쪽에 들어갈 최소 폭 (로고는 가운데 고정이라 양쪽 모두 필요) */
+    let dateW = 0;
+    const dateEl = area.querySelector(".chart-date");
+    const h1 = area.querySelector("h1");
+    if (dateEl && h1 && dateEl.textContent.trim()) {
+        dateW = RPS_LOGO_WIDTH + 2 * (RPS_DATE_GAP + h1.getBoundingClientRect().width);
+    }
+
+    const contentW = Math.max(tableW, legendW, dateW);
+
+    area.style.width = `${Math.round(contentW + 2 * side)}px`;
+    area.style.paddingLeft = `${side}px`;
+    area.style.paddingRight = `${side}px`;
+
+    const clip = table.closest(".table-clip");
+    if (clip) {
+        clip.style.width = `${tableW}px`;
+        clip.style.maxWidth = "none";
+        clip.style.margin = "0 auto";
+    }
+
+    /* 위쪽 여백 = 로고~표 간격 (로고 그림의 투명 여백 보정값은 그대로 유지) */
+    const gap = RPS_FULL_GAP_BELOW_LOGO * s;
+    const block = area.querySelector(".title-block");
+    if (block) block.style.marginBottom = `${Math.max(0, gap - RPS_GAP_REDUCE * s)}px`;
+
+    const basePadTop = parseFloat(area.style.getPropertyValue("--rps-pad-top"));
+    const padOffset = Number.isFinite(basePadTop) ? basePadTop - RPS_FULL_GAP_BELOW_LOGO : 6;
+    area.style.paddingTop = `${gap + padOffset}px`; /* 위쪽 여백은 그대로 (로고 위치 유지) */
+    area.style.paddingBottom = `${RPS_FULL_PAD_BOTTOM * s}px`;
+}
+
+/* ==========================================
+   공수 저장 이미지 - 제외한 멤버를 빼고, 남은 인원에 맞게 배치/폭 조정
+   - 남은 인원 수에 따라 "몇 열로 놓을지"를 이미지 비율이 4:3에 가깝도록 고른다.
+   - 열마다 인원이 고르게 나뉘도록(예: 10명 -> 4-3-3) 위에서 아래, 왼쪽에서 오른쪽 순서로 채운다.
+   - 칸 크기는 그대로 두고 이미지 폭이 열 수에 맞게 줄어서, 빈 여백이 생기지 않는다.
+   - 제목과 날짜가 들어갈 최소 폭은 항상 확보한다.
+   (저장할 때 복제된 문서에서만 적용하고, 실제 화면은 건드리지 않는다)
+========================================== */
+
+const LR_COL_WIDTH = 544;       // 한 열의 폭 = (1820 - 좌우 여백 128 - 열 간격 30x2) / 3
+const LR_COL_GAP = 30;          // style.css .lr-grid 열 간격
+const LR_SIDE_PADDING = 64;     // style.css 공수 좌우 여백
+const LR_EST_ROW_HEIGHT = 244;  // 멤버 한 줄 높이(바 38 + 간격 14 + 입력칸 190 + 여유)
+const LR_EST_ROW_GAP = 34;      // style.css .lr-grid 행 간격
+const LR_EST_FIXED_HEIGHT = 290; // 위 여백 72 + 제목 약 58 + 제목 아래 78 + 아이디 43 + 아래 여백 40
+const LR_TARGET_ASPECT = 4 / 3;
+const LR_MAX_COLS = 4;
+const LR_DATE_GAP = 18;         // 제목~날짜 간격
+
+function chooseLrColumns(n) {
+    let best = 1;
+    let bestScore = Infinity;
+
+    for (let c = 1; c <= Math.min(n, LR_MAX_COLS); c++) {
+        const r = Math.ceil(n / c);
+        const w = 2 * LR_SIDE_PADDING + c * LR_COL_WIDTH + (c - 1) * LR_COL_GAP;
+        const h = LR_EST_FIXED_HEIGHT + r * LR_EST_ROW_HEIGHT + (r - 1) * LR_EST_ROW_GAP;
+        const score = Math.abs(Math.log((w / h) / LR_TARGET_ASPECT));
+
+        if (score < bestScore - 1e-9) {
+            best = c;
+            bestScore = score;
+        }
+    }
+
+    return best;
+}
+
+function fitLrCaptureToMembers(doc, area) {
+    const grid = doc.getElementById("lrGrid");
+    if (!grid) return;
+
+    const rows = [...grid.querySelectorAll(".lr-row")];
+    const kept = rows.filter((r) => !r.classList.contains("excluded"));
+    rows.filter((r) => r.classList.contains("excluded")).forEach((r) => r.remove());
+
+    const n = kept.length;
+    if (!n) return;
+
+    const cols = chooseLrColumns(n);
+    const base = Math.floor(n / cols);
+    const extra = n % cols;
+
+    let idx = 0;
+    let maxRows = 0;
+
+    for (let c = 0; c < cols; c++) {
+        const count = base + (c < extra ? 1 : 0);
+        maxRows = Math.max(maxRows, count);
+
+        for (let r = 0; r < count; r++) {
+            const row = kept[idx++];
+            row.style.gridColumn = String(c + 1);
+            row.style.gridRow = String(r + 1);
+        }
+    }
+
+    grid.style.gridTemplateColumns = `repeat(${cols}, ${LR_COL_WIDTH}px)`;
+    grid.style.gridTemplateRows = `repeat(${maxRows}, auto)`;
+    grid.style.justifyContent = "center";
+
+    const gridW = cols * LR_COL_WIDTH + (cols - 1) * LR_COL_GAP;
+
+    /* 제목은 가운데, 날짜는 제목 오른쪽 옆이므로 양쪽에 날짜 폭만큼 여유가 있어야 잘리지 않는다 */
+    let titleNeed = 0;
+    const h1 = area.querySelector("h1");
+    const dateEl = area.querySelector(".chart-date");
+
+    if (h1) {
+        const titleW = h1.getBoundingClientRect().width;
+        const dateW = dateEl && dateEl.textContent.trim()
+            ? dateEl.getBoundingClientRect().width + LR_DATE_GAP
+            : 0;
+        titleNeed = titleW + 2 * dateW;
+    }
+
+    area.style.width = `${Math.round(Math.max(gridW, titleNeed) + 2 * LR_SIDE_PADDING)}px`;
+}
+
 saveBtn.addEventListener("click", async () => {
     /* 공수 취향표: 글이 넘쳐서 잘리는 멤버가 있으면 저장 전에 알려준다. */
     if (currentTab === "lr") {
+        if (members.every((_, i) => lrData.excluded[i])) {
+            alert("저장할 멤버가 없어요. '제외하기' 체크를 하나 이상 풀어주세요.");
+            return;
+        }
+
         updateLrScale();
         const overflowed = [...lrGrid.querySelectorAll(".lr-row")]
             .map((r, i) => (r.classList.contains("overflow") ? members[i] : null))
@@ -961,6 +1161,18 @@ saveBtn.addEventListener("click", async () => {
              * 실제 화면의 textarea(입력 가능 상태)는 건드리지 않는다.
              */
             onclone: (clonedDoc) => {
+                /* 공수: 제외한 멤버를 빼고 남은 인원에 맞게 배치/폭 조정 */
+                if (currentTab === "lr") {
+                    const clonedLr = clonedDoc.getElementById("captureAreaLr");
+                    if (clonedLr) fitLrCaptureToMembers(clonedDoc, clonedLr);
+                }
+
+                /* 알페스: 셀 개수에 맞춰 이미지 폭/여백을 조정 (셀 크기는 원래대로 유지) */
+                if (currentTab === "rps") {
+                    const clonedRps = clonedDoc.getElementById("captureArea");
+                    if (clonedRps) fitRpsCaptureToCells(clonedDoc, clonedRps);
+                }
+
                 /* 저장 이미지는 항상 PC 레이아웃 기준: 모바일용 보정(k)과 경고 표시는 걷어낸다. */
                 const clonedGrid = clonedDoc.getElementById("lrGrid");
                 if (clonedGrid) clonedGrid.style.setProperty("--k", "1");
@@ -1202,6 +1414,8 @@ const LOGO_OPTICAL_MAX_SHIFT = 14; // 보정 한계(px)
 
             let sum = 0;
             let sumX = 0;
+            let inkTop = ch;   // 그림이 실제로 그려진 맨 위 줄
+            let inkBottom = 0; // 그림이 실제로 그려진 맨 아래 줄
 
             for (let y = 0; y < ch; y++) {
                 for (let x = 0; x < cw; x++) {
@@ -1211,6 +1425,10 @@ const LOGO_OPTICAL_MAX_SHIFT = 14; // 보정 한계(px)
                     const weight = alpha * dark;
                     sum += weight;
                     sumX += weight * (x + 0.5);
+                    if (alpha > 0.3) {
+                        if (y < inkTop) inkTop = y;
+                        if (y > inkBottom) inkBottom = y;
+                    }
                 }
             }
 
@@ -1223,6 +1441,28 @@ const LOGO_OPTICAL_MAX_SHIFT = 14; // 보정 한계(px)
             shift = Math.max(-LOGO_OPTICAL_MAX_SHIFT, Math.min(LOGO_OPTICAL_MAX_SHIFT, shift));
 
             logo.style.setProperty("--logo-shift", `${shift.toFixed(1)}px`);
+
+            /* 로고 그림 위/아래의 빈 여백(px). 그림 파일은 글자 둘레에 투명 여백이 있어서
+               "그림 상자"의 가장자리와 "눈에 보이는 글자"의 가장자리가 다르다. */
+            const logoDisplayHeight = logoDisplayWidth * (h / w);
+            const clampGap = (v) => Math.max(0, Math.min(60, v));
+            const inkGapBottom = clampGap(((ch - 1 - inkBottom) / ch) * logoDisplayHeight);
+            const inkGapTop = clampGap((inkTop / ch) * logoDisplayHeight);
+
+            /* 1) 날짜 아랫선 = 로고 글자의 아랫선.
+               이 값은 로고의 "형제"인 날짜(h1)가 읽어야 하므로 반드시 부모(.title-block)에 넣는다.
+               (로고 자신에게 넣으면 형제에게 전달되지 않아 보정이 0이 되어 날짜가 아래로 내려간다) */
+            const block = logo.parentElement;
+            if (block) block.style.setProperty("--logo-ink-gap", `${inkGapBottom.toFixed(1)}px`);
+
+            /* 2) 위쪽 여백 = 로고와 표 사이 간격 ("눈에 보이는 글자" 기준으로 같게).
+               표 쪽 간격은 CSS의 .title-block margin-bottom(72px) + 로고 아래 투명 여백,
+               위쪽은 padding-top + 로고 위 투명 여백이므로 둘이 같아지도록 padding-top을 계산한다.
+               로고가 지금보다 최소 6px은 내려오도록 하한(78px)을 둔다. */
+            const GAP_BELOW_LOGO = 72; // style.css의 알페스 .title-block margin-bottom과 같아야 한다
+            const padTop = Math.max(GAP_BELOW_LOGO + 6, GAP_BELOW_LOGO + inkGapBottom - inkGapTop);
+            const area = document.getElementById("captureArea");
+            if (area) area.style.setProperty("--rps-pad-top", `${padTop.toFixed(1)}px`);
         } catch (e) {
             /* 캔버스로 읽을 수 없으면 보정 없이 그대로 */
         }
